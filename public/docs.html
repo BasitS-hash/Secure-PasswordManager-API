@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Documentation - Secure Password Manager</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 3rem 2rem;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .endpoint {
+            background: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .endpoint-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .method {
+            padding: 0.3rem 0.8rem;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .method-post {
+            background: #10b981;
+            color: white;
+        }
+
+        .method-get {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .endpoint-path {
+            font-family: 'Courier New', monospace;
+            font-size: 1.1rem;
+            color: #667eea;
+        }
+
+        pre {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 1rem;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+
+        code {
+            font-family: 'Courier New', monospace;
+            background: #f0f0f0;
+            padding: 0.2rem 0.4rem;
+            border-radius: 3px;
+        }
+
+        h2 {
+            color: #667eea;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 1rem;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>📚 API Documentation</h1>
+        <p>Secure Password Manager REST API Reference</p>
+    </header>
+
+    <div class="container">
+        <a href="/" class="back-link">← Back to Home</a>
+
+        <h2>Authentication Endpoints</h2>
+
+        <div class="endpoint">
+            <div class="endpoint-header">
+                <span class="method method-post">POST</span>
+                <span class="endpoint-path">/api/auth/register</span>
+            </div>
+            <p><strong>Description:</strong> Register a new user account</p>
+            <p><strong>Request Body:</strong></p>
+            <pre>{
+  "username": "string",
+  "password": "string"
+}</pre>
+            <p><strong>Response:</strong></p>
+            <pre>{
+  "id": "uuid",
+  "username": "string"
+}</pre>
+        </div>
+
+        <div class="endpoint">
+            <div class="endpoint-header">
+                <span class="method method-post">POST</span>
+                <span class="endpoint-path">/api/auth/login</span>
+            </div>
+            <p><strong>Description:</strong> Login and receive JWT tokens + encryption salt</p>
+            <p><strong>Request Body:</strong></p>
+            <pre>{
+  "username": "string",
+  "password": "string"
+}</pre>
+            <p><strong>Response:</strong></p>
+            <pre>{
+  "accessToken": "jwt_token",
+  "refreshToken": "uuid",
+  "encryption_salt": "hex_string"
+}</pre>
+        </div>
+
+        <div class="endpoint">
+            <div class="endpoint-header">
+                <span class="method method-post">POST</span>
+                <span class="endpoint-path">/api/auth/token</span>
+            </div>
+            <p><strong>Description:</strong> Refresh access token using refresh token</p>
+            <p><strong>Request Body:</strong></p>
+            <pre>{
+  "refreshToken": "uuid"
+}</pre>
+            <p><strong>Response:</strong></p>
+            <pre>{
+  "accessToken": "new_jwt_token"
+}</pre>
+        </div>
+
+        <div class="endpoint">
+            <div class="endpoint-header">
+                <span class="method method-post">POST</span>
+                <span class="endpoint-path">/api/auth/logout</span>
+            </div>
+            <p><strong>Description:</strong> Invalidate refresh token (logout)</p>
+            <p><strong>Request Body:</strong></p>
+            <pre>{
+  "refreshToken": "uuid"
+}</pre>
+            <p><strong>Response:</strong></p>
+            <pre>{
+  "ok": true
+}</pre>
+        </div>
+
+        <h2>Password Entry Endpoints</h2>
+
+        <div class="endpoint">
+            <div class="endpoint-header">
+                <span class="method method-post">POST</span>
+                <span class="endpoint-path">/api/entries</span>
+            </div>
+            <p><strong>Description:</strong> Create a new encrypted password entry</p>
+            <p><strong>Headers:</strong> <code>Authorization: Bearer {accessToken}</code></p>
+            <p><strong>Request Body:</strong></p>
+            <pre>{
+  "name": "string",
+  "ciphertext": "base64_encrypted_password",
+  "iv": "base64_initialization_vector",
+  "tag": "base64_auth_tag",
+  "meta": { "url": "string (optional)" }
+}</pre>
+            <p><strong>Response:</strong></p>
+            <pre>{
+  "ok": true
+}</pre>
+        </div>
+
+        <div class="endpoint">
+            <div class="endpoint-header">
+                <span class="method method-get">GET</span>
+                <span class="endpoint-path">/api/entries</span>
+            </div>
+            <p><strong>Description:</strong> List all password entries for authenticated user</p>
+            <p><strong>Headers:</strong> <code>Authorization: Bearer {accessToken}</code></p>
+            <p><strong>Response:</strong></p>
+            <pre>{
+  "entries": [
+    {
+      "id": "uuid",
+      "name": "string",
+      "ciphertext": "base64_string",
+      "iv": "base64_string",
+      "tag": "base64_string",
+      "meta": { "url": "string" },
+      "created_at": "timestamp"
+    }
+  ]
+}</pre>
+        </div>
+
+        <h2>Example Usage (cURL)</h2>
+
+        <div class="endpoint">
+            <h3>Register a User</h3>
+            <pre>curl -X POST http://localhost:4000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"alice","password":"SecurePass123!"}'</pre>
+
+            <h3>Login</h3>
+            <pre>curl -X POST http://localhost:4000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"alice","password":"SecurePass123!"}'</pre>
+
+            <h3>List Entries</h3>
+            <pre>curl http://localhost:4000/api/entries \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"</pre>
+        </div>
+
+        <h2>Security Notes</h2>
+        <div class="endpoint">
+            <ul>
+                <li><strong>Zero-Knowledge:</strong> The server never sees plaintext passwords. All encryption must happen client-side.</li>
+                <li><strong>Encryption Key Derivation:</strong> Use the <code>encryption_salt</code> from login with the master password to derive the AES-256 key.</li>
+                <li><strong>Rate Limiting:</strong> Auth endpoints are limited to 10 requests per 15 minutes per IP.</li>
+                <li><strong>Token Expiry:</strong> Access tokens expire in 15 minutes. Use refresh token to get new access token.</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

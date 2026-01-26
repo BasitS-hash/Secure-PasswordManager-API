@@ -1,0 +1,17 @@
+node_modules
+.env
+.env.*
+coverage
+npm-debug.log
+*.log
+.DS_Store
+.git
+.github
+README.md
+SETUP.md
+PROJECT_COMPLETE.md
+DEPLOYMENT.md
+tests
+jest.config.js
+docker-compose.yml
+nginx.conf
