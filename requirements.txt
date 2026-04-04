@@ -6,6 +6,7 @@ psycopg2-binary==2.9.9
 cryptography==41.0.7
 werkzeug==3.0.1
 Flask-Limiter==3.5.0
+flask-swagger-ui==5.32.1.post2
 
 # Testing
 pytest==7.4.3

@@ -6,8 +6,8 @@ Zero-knowledge password storage with client-side encryption
 import os
 from flask import Flask, send_from_directory, jsonify
 from dotenv import load_dotenv
-import asyncio
 from datetime import datetime
+from flask_swagger_ui import get_swaggerui_blueprint
 
 from src.logger import logger
 from src.routes.auth import auth_bp
@@ -39,6 +39,14 @@ def set_security_headers(response):
 app.register_blueprint(auth_bp)
 app.register_blueprint(entries_bp)
 
+# Swagger UI
+swaggerui_bp = get_swaggerui_blueprint(
+    '/docs',
+    '/static/swagger.json',
+    config={'app_name': 'Secure Password Manager API'}
+)
+app.register_blueprint(swaggerui_bp)
+
 
 # Serve static files
 @app.route('/')
@@ -51,6 +59,12 @@ def serve_index():
 def serve_static(filename):
     """Serve static files from public directory."""
     return send_from_directory('public', filename)
+
+
+@app.route('/static/swagger.json')
+def swagger_spec():
+    """Serve the OpenAPI spec."""
+    return send_from_directory('static', 'swagger.json')
 
 
 # Health check endpoint
