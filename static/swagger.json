@@ -2,10 +2,10 @@
   "openapi": "3.0.0",
   "info": {
     "title": "Secure Password Manager API",
-    "description": "A zero-knowledge password manager API. Passwords are encrypted client-side with AES-256-GCM before being stored — the server never sees plaintext passwords.\n\n## How it works\n1. Register and get your `encryption_salt`\n2. Derive an AES key from your master password + salt (client-side)\n3. Encrypt your passwords before sending them\n4. Only you can decrypt them\n\n## Authentication\nUse the `/auth/login` endpoint to get a JWT `accessToken`, then include it as `Bearer <token>` in the `Authorization` header.",
+    "description": "**Created by Basit Sherazi**\n\nA zero-knowledge password manager API. Passwords are encrypted client-side with AES-256-GCM before being stored — the server never sees plaintext passwords.\n\n## How it works\n1. Register and get your `encryption_salt`\n2. Derive an AES key from your master password + salt (client-side)\n3. Encrypt your passwords before sending them\n4. Only you can decrypt them\n\n## Authentication\nUse the `/auth/login` endpoint to get a JWT `accessToken`, then include it as `Bearer <token>` in the `Authorization` header.",
     "version": "1.0.0",
     "contact": {
-      "name": "Basit Sherazi",
+      "name": "Basit Sherazi — GitHub",
       "url": "https://github.com/BasitS-hash/Secure-PasswordManager-API"
     }
   },
