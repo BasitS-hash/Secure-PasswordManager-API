@@ -19,7 +19,7 @@ entries_bp = Blueprint('entries', __name__, url_prefix='/entries')
 
 @entries_bp.route('/', methods=['POST'])
 @authenticate_token
-async def create_entry():
+def create_entry():
     """
     Create a password entry (expects ciphertext, iv, tag from client-side encryption).
     """
@@ -29,50 +29,50 @@ async def create_entry():
     iv = data.get('iv')
     tag = data.get('tag')
     meta = data.get('meta')
-    
+
     user_id = request.user.get('sub') if request.user else None
     ip = request.remote_addr
-    
+
     if not all([name, ciphertext, iv, tag]):
-        await audit_log(user_id=user_id, action='create_entry', ip=ip, success=False, 
-                       message='missing required fields')
+        audit_log(user_id=user_id, action='create_entry', ip=ip, success=False,
+                  message='missing required fields')
         return jsonify({'error': 'name, ciphertext, iv and tag are required'}), 400
-    
+
     try:
         # Convert base64 strings to bytes
         ciphertext_bytes = base64.b64decode(ciphertext)
         iv_bytes = base64.b64decode(iv)
         tag_bytes = base64.b64decode(tag)
-        
+
         db.execute(
             '''INSERT INTO password_entries(user_id, name, ciphertext, iv, tag, meta)
                VALUES(%s, %s, %s, %s, %s, %s)''',
             (user_id, name, ciphertext_bytes, iv_bytes, tag_bytes, meta or None)
         )
-        
-        await audit_log(user_id=user_id, action='create_entry', ip=ip, success=True)
+
+        audit_log(user_id=user_id, action='create_entry', ip=ip, success=True)
         return jsonify({'ok': True}), 201
-        
+
     except Exception as err:
         logger.error(f'Create entry error: {err}')
-        await audit_log(user_id=user_id, action='create_entry', ip=ip, success=False, 
-                       message=str(err))
+        audit_log(user_id=user_id, action='create_entry', ip=ip, success=False,
+                  message=str(err))
         return jsonify({'error': 'Failed to create entry'}), 500
 
 
 @entries_bp.route('/', methods=['GET'])
 @authenticate_token
-async def list_entries():
+def list_entries():
     """
     List all password entries for the authenticated user.
     Returns ciphertext blobs only (encrypted on client-side).
     """
     user_id = request.user.get('sub') if request.user else None
     ip = request.remote_addr
-    
+
     try:
         result = db.query(
-            '''SELECT id, name, encode(ciphertext, 'base64') AS ciphertext, 
+            '''SELECT id, name, encode(ciphertext, 'base64') AS ciphertext,
                       encode(iv, 'base64') AS iv, encode(tag, 'base64') AS tag,
                       meta, created_at
                FROM password_entries
@@ -80,13 +80,13 @@ async def list_entries():
                ORDER BY created_at DESC''',
             (user_id,)
         )
-        
-        await audit_log(user_id=user_id, action='list_entries', ip=ip, success=True)
-        
+
+        audit_log(user_id=user_id, action='list_entries', ip=ip, success=True)
+
         return jsonify({'entries': result or []}), 200
-        
+
     except Exception as err:
         logger.error(f'List entries error: {err}')
-        await audit_log(user_id=user_id, action='list_entries', ip=ip, success=False, 
-                       message=str(err))
+        audit_log(user_id=user_id, action='list_entries', ip=ip, success=False,
+                  message=str(err))
         return jsonify({'error': 'Failed to list entries'}), 500

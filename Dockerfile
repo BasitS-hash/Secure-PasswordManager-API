@@ -1,14 +1,15 @@
-FROM node:20-alpine
+FROM python:3.11-slim
 
-WORKDIR /usr/src/app
+WORKDIR /app
 
-COPY package.json package-lock.json* ./
-RUN npm ci --production || npm install --production
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-ENV NODE_ENV=production
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
 EXPOSE 4000
 
-CMD ["node","src/app.js"]
+CMD ["gunicorn", "--bind", "0.0.0.0:4000", "--workers", "2", "app:app"]
