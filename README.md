@@ -1,161 +1,161 @@
-# 🔐 Secure Password Manager API
+# Secure Password Manager API
 
-[![Deploy](https://github.com/YOUR_USERNAME/Secure-PasswordManager-API/actions/workflows/deploy.yml/badge.svg)](https://github.com/YOUR_USERNAME/Secure-PasswordManager-API/actions)
+**Created by Basit Sherazi**
 
-A production-ready REST API **with beautiful web interface** for securely storing and managing passwords with **zero-knowledge architecture** and industry-standard encryption.
+A production-ready REST API for securely storing and managing passwords using a **zero-knowledge architecture** — the server never sees your plaintext passwords.
 
-## ✨ Features
+Live API: `https://secure-passwordmanager-api-production.up.railway.app`
+Interactive Docs: `https://secure-passwordmanager-api-production.up.railway.app/docs`
 
-- 🌐 **Beautiful Web Interface** - Modern landing page + interactive password manager
-- 🔒 **Zero-Knowledge Storage** - Server never sees plaintext passwords
-- 🛡️ **Argon2id Hashing** - Memory-hard, GPU-resistant master password protection
-- 🔐 **AES-256-GCM Encryption** - Client-side authenticated encryption
-- 🎫 **JWT Authentication** - Secure access + refresh token system
-- 🚦 **Rate Limiting** - Built-in brute force protection
-- 📊 **Audit Logging** - Complete access history with IP tracking
-- 🎲 **Password Generator** - Cryptographically secure random passwords
-- 📈 **Entropy Analyzer** - Password strength estimation
-- 🐳 **Docker Ready** - One-command deployment
-- 🚀 **CI/CD Pipeline** - Auto-deploy on push to main
+---
 
-## 🌐 Live Demo Features
+## Features
 
-When deployed, users get:
-- **Landing Page** - Professional introduction to features
-- **Web App** - Full password manager in the browser
-- **Register/Login** - User account management
-- **Password Vault** - Store & manage encrypted passwords
-- **API Docs** - Complete endpoint reference
+- **Zero-Knowledge Storage** — passwords are encrypted client-side before being sent
+- **Argon2id Hashing** — memory-hard, GPU-resistant master password protection
+- **AES-256-GCM Encryption** — authenticated client-side encryption
+- **JWT Authentication** — access token (15 min) + refresh token (7 days)
+- **Rate Limiting** — brute force protection on all endpoints
+- **Audit Logging** — every action logged with IP and timestamp
+- **Password Generator** — cryptographically secure random passwords
+- **Docker Ready** — one-command local deployment
+- **CI/CD** — auto-deploys to Railway on every push to main
 
-## 🚀 Quick Start
+---
 
-### Option 1: Deploy to Cloud (Recommended)
-```bash
-# Push to GitHub
-git push origin main
+## Tech Stack
 
-# GitHub Actions automatically:
-# ✅ Tests → 🐳 Builds → 📦 Deploys
-```
-**See [QUICKSTART.md](QUICKSTART.md) for 5-minute setup!**
+| Layer | Technology |
+|---|---|
+| Backend | Python 3.11 + Flask 3.0 |
+| Database | PostgreSQL 15 |
+| Password Hashing | Argon2id |
+| Encryption | AES-256-GCM (cryptography library) |
+| Authentication | JWT (PyJWT) |
+| Web Server | Gunicorn |
+| Deployment | Railway |
+| Containerization | Docker + Docker Compose |
 
-### Option 2: Run Locally with Docker
-```bash
-./deploy.sh
-# Visit http://localhost:4000
-```
+---
 
-### Option 3: Development Mode
-```bash
-npm install
-cp .env.example .env
-npm run dev
-# Visit http://localhost:4000
-```
-
-## 📚 Documentation
-
-- **[WEBSITE.md](WEBSITE.md)** - Website features & how it works
-- **[QUICKSTART.md](QUICKSTART.md)** - Go live in 5 minutes
-- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Full CI/CD setup guide
-- **[SETUP.md](SETUP.md)** - Detailed API usage & architecture
-- **[COMMANDS.md](COMMANDS.md)** - Command reference
-
-## 🏗️ Tech Stack
-
-- **Backend**: Node.js 20 + Express 4.18
-- **Database**: PostgreSQL 15 with encrypted fields
-- **Security**: Argon2id, AES-256-GCM, JWT, Helmet
-- **Testing**: Jest + Supertest
-- **Deployment**: Docker + GitHub Actions
-- **Proxy**: Nginx with rate limiting
-
-## 🔐 API Endpoints
+## API Endpoints
 
 | Endpoint | Method | Auth | Description |
-|----------|--------|------|-------------|
-| `/api/auth/register` | POST | ❌ | Register new user |
-| `/api/auth/login` | POST | ❌ | Login (returns JWT + salt) |
-| `/api/auth/token` | POST | ❌ | Refresh access token |
-| `/api/auth/logout` | POST | ❌ | Invalidate refresh token |
-| `/api/entries` | POST | ✅ | Create password entry |
-| `/api/entries` | GET | ✅ | List password entries |
+|---|---|---|---|
+| `/health` | GET | No | Health check |
+| `/auth/register` | POST | No | Create account |
+| `/auth/login` | POST | No | Login, get tokens + salt |
+| `/auth/token` | POST | No | Refresh access token |
+| `/auth/logout` | POST | No | Invalidate session |
+| `/entries/` | POST | JWT | Store encrypted entry |
+| `/entries/` | GET | JWT | List encrypted entries |
 
-## 🔒 Zero-Knowledge Architecture
+Full interactive docs at `/docs`.
+
+---
+
+## Zero-Knowledge Architecture
 
 ```
-Master Password + Salt → [Argon2id] → Encryption Key (32 bytes)
-                                            ↓
-Password Entry → [AES-256-GCM] → Ciphertext + IV + Tag
-                                            ↓
-                                    Store in Database
+Master Password + Salt
+        │
+        ▼ (client-side only)
+   Argon2id / PBKDF2
+        │
+        ▼
+  AES-256 Key (32 bytes)
+        │
+        ▼
+  AES-256-GCM Encrypt(password entry)
+        │
+        ▼
+  { ciphertext, iv, tag }  ──► sent to server ──► stored in DB
 ```
 
-**Server never sees plaintext!** All encryption/decryption happens client-side.
+The server only ever stores encrypted blobs. Even a full database breach exposes nothing readable.
 
-## 🧪 Testing
+---
+
+## Run Locally with Docker
 
 ```bash
-npm test  # Run all tests
+git clone https://github.com/BasitS-hash/Secure-PasswordManager-API.git
+cd Secure-PasswordManager-API
+docker-compose up --build
 ```
 
-Tests include:
-- ✅ AES-GCM encryption/decryption roundtrip
-- ✅ Password generator validation
-- ✅ Entropy calculation
-- ✅ API endpoint smoke tests
+API runs at `http://localhost:4000`
 
-## 📦 Project Structure
+---
 
-```
-├── .github/workflows/deploy.yml  # CI/CD pipeline
-├── client/crypto_demo.js         # Zero-knowledge helpers
-├── migrations/                   # Database schema
-├── src/
-│   ├── routes/                   # Auth & entries endpoints
-│   ├── middleware/               # JWT, rate limiting, audit
-│   └── utils/                    # Crypto & password tools
-├── tests/                        # Jest test suite
-├── docker-compose.yml            # Multi-container setup
-├── nginx.conf                    # Reverse proxy config
-└── deploy.sh                     # One-command deployment
+## Run Without Docker
+
+```bash
+pip3 install -r requirements.txt
+cp .env.example .env   # fill in your values
+python3 app.py
 ```
 
-## 🌐 Environment Variables
+---
+
+## Environment Variables
 
 ```env
-DATABASE_URL=postgres://user:pass@localhost:5432/passwords_db
+DATABASE_URL=postgresql://user:pass@localhost:5432/passwords_db
 PORT=4000
 JWT_SECRET=your_32_byte_random_secret
-REFRESH_TOKEN_SECRET=another_32_byte_random_secret
 ACCESS_TOKEN_EXPIRES_IN=15m
 REFRESH_TOKEN_EXPIRES_IN=7d
 ```
 
-Generate secrets:
+Generate a secret:
 ```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+python3 -c "import secrets; print(secrets.token_hex(32))"
 ```
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create feature branch: `git checkout -b feature/amazing-feature`
-3. Commit changes: `git commit -m 'Add amazing feature'`
-4. Push to branch: `git push origin feature/amazing-feature`
-5. Open Pull Request
-
-## 📄 License
-
-MIT License - see [LICENSE](LICENSE) file
-
-## 🆘 Support
-
-- 📖 [Full Documentation](SETUP.md)
-- 🚀 [Deployment Guide](DEPLOYMENT.md)
-- ⚡ [Quick Start](QUICKSTART.md)
-- 🐛 [Report Issues](https://github.com/YOUR_USERNAME/Secure-PasswordManager-API/issues)
 
 ---
 
-**Built with ❤️ for cybersecurity professionals**
+## Testing
+
+```bash
+python3 -m pytest tests/ -v
+```
+
+15 tests covering:
+- AES-GCM encrypt/decrypt roundtrip
+- Password generator (length, charsets, entropy)
+- API endpoint auth checks
+- Health endpoint
+
+---
+
+## Project Structure
+
+```
+app.py                        # Flask entry point
+src/
+  routes/auth.py              # Register, login, token, logout
+  routes/entries.py           # Create and list encrypted entries
+  middleware/auth.py          # JWT verification decorator
+  middleware/audit.py         # Audit logging
+  middleware/rate_limit.py    # Flask-Limiter setup
+  utils/crypto.py             # AES-256-GCM helpers
+  utils/passwords.py          # Password generator + entropy
+  db.py                       # PostgreSQL connection + queries
+migrations/
+  001_init.sql                # users + password_entries tables
+  002_refresh_audit.sql       # refresh_tokens + audit_logs tables
+static/
+  swagger.json                # OpenAPI 3.0 spec
+tests/
+  test_api.py                 # API integration tests
+  test_crypto.py              # Crypto + password unit tests
+docker-compose.yml
+Dockerfile
+```
+
+---
+
+## License
+
+MIT
