@@ -10,14 +10,14 @@ import math
 def generate_password(length=16, upper=True, lower=True, digits=True, symbols=True):
     """
     Generate a random password with specified character sets.
-    
+
     Args:
         length: password length (default 16)
         upper: include uppercase letters
         lower: include lowercase letters
         digits: include digits
         symbols: include symbols
-        
+
     Returns:
         Generated password string
     """
@@ -30,7 +30,7 @@ def generate_password(length=16, upper=True, lower=True, digits=True, symbols=Tr
         sets.append('0123456789')
     if symbols:
         sets.append('!@#$%^&*()-_=+[]{}|;:,.<>?')
-    
+
     if not sets:
         raise ValueError('At least one character set required')
 
@@ -52,10 +52,10 @@ def generate_password(length=16, upper=True, lower=True, digits=True, symbols=Tr
 def entropy_bits(password):
     """
     Estimate entropy of password by calculating log2(possibleSymbols^length).
-    
+
     Args:
         password: password string to analyze
-        
+
     Returns:
         Estimated entropy in bits
     """
@@ -63,7 +63,7 @@ def entropy_bits(password):
     has_lower = bool(re.search(r'[a-z]', password))
     has_digits = bool(re.search(r'[0-9]', password))
     has_symbols = bool(re.search(r'[^A-Za-z0-9]', password))
-    
+
     pool = 0
     if has_upper:
         pool += 26
@@ -73,8 +73,8 @@ def entropy_bits(password):
         pool += 10
     if has_symbols:
         pool += 32  # approximate symbol count
-    
+
     if pool == 0:
         return 0
-    
+
     return math.log2(pow(pool, len(password)))

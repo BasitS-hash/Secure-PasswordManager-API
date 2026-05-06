@@ -23,6 +23,7 @@ app = Flask(__name__, static_folder='public', static_url_path='')
 # Initialize rate limiter
 limiter.init_app(app)
 
+
 # Security headers
 @app.after_request
 def set_security_headers(response):
@@ -100,6 +101,6 @@ def rate_limit_handler(error):
 if __name__ == '__main__':
     PORT = int(os.getenv('PORT', 4000))
     DEBUG = os.getenv('DEBUG', 'false').lower() == 'true'
-    
+
     logger.info(f'Starting Secure Password Manager API on port {PORT}')
     app.run(host='0.0.0.0', port=PORT, debug=DEBUG)

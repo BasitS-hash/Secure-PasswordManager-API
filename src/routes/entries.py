@@ -2,7 +2,6 @@
 Password entry routes for storing and retrieving encrypted passwords.
 """
 
-import os
 from flask import Blueprint, request, jsonify
 from dotenv import load_dotenv
 import base64

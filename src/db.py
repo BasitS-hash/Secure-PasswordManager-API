@@ -24,13 +24,13 @@ def query(sql, params=None):
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cur.execute(sql, params or ())
         conn.commit()
-        
+
         # Return results or None for INSERT/UPDATE/DELETE
         try:
             return cur.fetchall()
         except psycopg2.ProgrammingError:
             return None
-    except Exception as e:
+    except Exception:
         conn.rollback()
         raise
     finally:
@@ -52,7 +52,7 @@ def execute(sql, params=None):
         cur.execute(sql, params or ())
         conn.commit()
         return cur.rowcount
-    except Exception as e:
+    except Exception:
         conn.rollback()
         raise
     finally:

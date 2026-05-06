@@ -21,16 +21,16 @@ def authenticate_token(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         auth_header = request.headers.get('Authorization', '')
-        
+
         if not auth_header:
             return jsonify({'error': 'Missing token'}), 401
-        
+
         try:
             # Extract token from "Bearer <token>"
             token = auth_header.split(' ')[1]
         except IndexError:
             return jsonify({'error': 'Invalid authorization header'}), 401
-        
+
         try:
             user = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
             request.user = user
@@ -38,7 +38,7 @@ def authenticate_token(f):
             return jsonify({'error': 'Token expired'}), 403
         except jwt.InvalidTokenError:
             return jsonify({'error': 'Invalid token'}), 403
-        
+
         return f(*args, **kwargs)
-    
+
     return decorated_function
