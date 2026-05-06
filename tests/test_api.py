@@ -17,46 +17,76 @@ def client():
 
 class TestAuthEndpoints:
     """Test authentication endpoints."""
-    
+
     def test_register_requires_username_and_password(self, client):
-        """Test that registration requires username and password."""
         response = client.post('/auth/register', json={})
-        
         assert response.status_code == 400
-        assert 'error' in response.json
         assert 'username and password required' in response.json['error']
-    
+
     def test_login_requires_username_and_password(self, client):
-        """Test that login requires username and password."""
         response = client.post('/auth/login', json={})
-        
         assert response.status_code == 400
-        assert 'error' in response.json
         assert 'username and password required' in response.json['error']
+
+    def test_register_rejects_short_password(self, client):
+        response = client.post('/auth/register', json={
+            'username': 'validuser',
+            'password': 'Short1@'
+        })
+        assert response.status_code == 400
+        assert 'at least 20 characters' in response.json['error']
+
+    def test_register_rejects_password_without_uppercase(self, client):
+        response = client.post('/auth/register', json={
+            'username': 'validuser',
+            'password': 'alllowercase1@3$567890'
+        })
+        assert response.status_code == 400
+        assert 'uppercase' in response.json['error']
+
+    def test_register_rejects_password_without_special_char(self, client):
+        response = client.post('/auth/register', json={
+            'username': 'validuser',
+            'password': 'NoSpecialChar12345678'
+        })
+        assert response.status_code == 400
+        assert 'special character' in response.json['error']
+
+    def test_register_rejects_invalid_username(self, client):
+        response = client.post('/auth/register', json={
+            'username': 'ab',
+            'password': 'ValidPass1@3$567890XX'
+        })
+        assert response.status_code == 400
+        assert 'Username' in response.json['error']
 
 
 class TestEntriesEndpoints:
     """Test password entry endpoints."""
-    
+
     def test_get_entries_without_auth_returns_401(self, client):
-        """Test that accessing entries without token returns 401."""
         response = client.get('/entries/')
-        
         assert response.status_code == 401
         assert 'error' in response.json
-    
+
     def test_create_entry_without_auth_returns_401(self, client):
-        """Test that creating entry without token returns 401."""
-        response = client.post(
-            '/entries/',
-            json={
-                'name': 'test',
-                'ciphertext': 'xyz',
-                'iv': 'abc',
-                'tag': 'def'
-            }
-        )
-        
+        response = client.post('/entries/', json={
+            'name': 'test', 'ciphertext': 'xyz', 'iv': 'abc', 'tag': 'def'
+        })
+        assert response.status_code == 401
+
+    def test_get_entry_by_id_without_auth_returns_401(self, client):
+        response = client.get('/entries/some-uuid')
+        assert response.status_code == 401
+
+    def test_update_entry_without_auth_returns_401(self, client):
+        response = client.put('/entries/some-uuid', json={
+            'name': 'test', 'ciphertext': 'xyz', 'iv': 'abc', 'tag': 'def'
+        })
+        assert response.status_code == 401
+
+    def test_delete_entry_without_auth_returns_401(self, client):
+        response = client.delete('/entries/some-uuid')
         assert response.status_code == 401
 
 

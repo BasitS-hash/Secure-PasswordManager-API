@@ -3,12 +3,13 @@ Authentication routes for register, login, token refresh, and logout.
 """
 
 import os
+import re
 import hashlib
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from flask import Blueprint, request, jsonify
 from argon2 import PasswordHasher
-from argon2.exceptions import VerifyMismatchError, InvalidHash
+from argon2.exceptions import VerifyMismatchError
 import jwt
 from dotenv import load_dotenv
 
@@ -26,6 +27,28 @@ JWT_SECRET = os.getenv('JWT_SECRET', 'your-secret-key-change-me')
 def hash_token(token):
     """Hash a refresh token using SHA256."""
     return hashlib.sha256(token.encode()).hexdigest()
+
+
+def validate_username(username):
+    """3–30 chars, letters/digits/underscore only."""
+    if not re.match(r'^[a-zA-Z0-9_]{3,30}$', username):
+        return False, 'Username must be 3–30 characters (letters, digits, underscore only)'
+    return True, ''
+
+
+def validate_password(password):
+    """Min 20 chars with uppercase, lowercase, digit, and special character (@, $, etc.)."""
+    if len(password) < 20:
+        return False, 'Password must be at least 20 characters long'
+    if not re.search(r'[A-Z]', password):
+        return False, 'Password must contain at least one uppercase letter'
+    if not re.search(r'[a-z]', password):
+        return False, 'Password must contain at least one lowercase letter'
+    if not re.search(r'[0-9]', password):
+        return False, 'Password must contain at least one digit (e.g. 1, 3, 5)'
+    if not re.search(r'[!@#$%^&*()\-_=+\[\]{}|;:,.<>?]', password):
+        return False, 'Password must contain at least one special character (e.g. @, $)'
+    return True, ''
 
 
 def parse_expiry(expiry_str):
@@ -71,6 +94,14 @@ def register():
     if not username or not password:
         audit_log(action='register', ip=ip, success=False, message='missing credentials')
         return jsonify({'error': 'username and password required'}), 400
+
+    valid, msg = validate_username(username)
+    if not valid:
+        return jsonify({'error': msg}), 400
+
+    valid, msg = validate_password(password)
+    if not valid:
+        return jsonify({'error': msg}), 400
 
     try:
         # Hash password with Argon2
@@ -136,12 +167,13 @@ def login():
             return jsonify({'error': 'Invalid credentials'}), 401
 
         # Create access token
+        now = datetime.now(timezone.utc)
         access_token_expires = parse_expiry(os.getenv('ACCESS_TOKEN_EXPIRES_IN', '15m'))
         access_token = jwt.encode(
             {
                 'sub': user['id'],
                 'username': username,
-                'exp': datetime.utcnow() + access_token_expires
+                'exp': now + access_token_expires
             },
             JWT_SECRET,
             algorithm='HS256'
@@ -152,7 +184,7 @@ def login():
         token_hash = hash_token(refresh_token)
 
         refresh_token_expires = parse_expiry(os.getenv('REFRESH_TOKEN_EXPIRES_IN', '7d'))
-        expires_at = datetime.utcnow() + refresh_token_expires
+        expires_at = now + refresh_token_expires
 
         db.execute(
             '''INSERT INTO refresh_tokens(user_id, token_hash, expires_at)
@@ -200,7 +232,11 @@ def refresh_token():
         record = result[0]
 
         # Check expiration
-        if datetime.fromisoformat(record['expires_at'].isoformat()) < datetime.utcnow():
+        now = datetime.now(timezone.utc)
+        expires_at = record['expires_at']
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if expires_at < now:
             return jsonify({'error': 'Refresh token expired'}), 403
 
         # Get user info
@@ -214,13 +250,24 @@ def refresh_token():
 
         username = user_result[0]['username']
 
-        # Create new access token
+        # Rotate: delete old token, issue new one
+        db.execute('DELETE FROM refresh_tokens WHERE token_hash=%s', (token_hash,))
+
+        new_refresh_token = str(uuid.uuid4())
+        new_token_hash = hash_token(new_refresh_token)
+        new_expires_at = now + parse_expiry(os.getenv('REFRESH_TOKEN_EXPIRES_IN', '7d'))
+        db.execute(
+            'INSERT INTO refresh_tokens(user_id, token_hash, expires_at) VALUES(%s, %s, %s)',
+            (record['user_id'], new_token_hash, new_expires_at)
+        )
+
+        # Issue new access token
         access_token_expires = parse_expiry(os.getenv('ACCESS_TOKEN_EXPIRES_IN', '15m'))
         access_token = jwt.encode(
             {
                 'sub': record['user_id'],
                 'username': username,
-                'exp': datetime.utcnow() + access_token_expires
+                'exp': now + access_token_expires
             },
             JWT_SECRET,
             algorithm='HS256'
@@ -228,7 +275,7 @@ def refresh_token():
 
         audit_log(user_id=record['user_id'], action='refresh_token', ip=ip, success=True)
 
-        return jsonify({'accessToken': access_token}), 200
+        return jsonify({'accessToken': access_token, 'refreshToken': new_refresh_token}), 200
 
     except Exception as err:
         logger.error(f'Token refresh error: {err}')

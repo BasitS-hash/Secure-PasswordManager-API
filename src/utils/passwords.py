@@ -33,11 +33,20 @@ def generate_password(length=16, upper=True, lower=True, digits=True, symbols=Tr
     
     if not sets:
         raise ValueError('At least one character set required')
-    
+
+    if length < len(sets):
+        raise ValueError(f'Length must be at least {len(sets)} to satisfy all character requirements')
+
     all_chars = ''.join(sets)
-    password = ''.join(secrets.choice(all_chars) for _ in range(length))
-    
-    return password
+
+    # Guarantee one character from each required set, then fill the rest randomly
+    guaranteed = [secrets.choice(s) for s in sets]
+    filler = [secrets.choice(all_chars) for _ in range(length - len(guaranteed))]
+
+    password_chars = guaranteed + filler
+    secrets.SystemRandom().shuffle(password_chars)
+
+    return ''.join(password_chars)
 
 
 def entropy_bits(password):
