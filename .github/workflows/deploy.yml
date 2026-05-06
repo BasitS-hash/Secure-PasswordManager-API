@@ -50,8 +50,10 @@ jobs:
         env:
           DATABASE_URL: postgres://postgres:testpass@localhost:5432/passwords_db_test
           JWT_SECRET: test-jwt-secret-for-ci
+          PYTHONPATH: .
         run: pytest --cov=src --cov-report=term-missing --cov-fail-under=80
 
+        
   build-and-push:
     needs: test
     runs-on: ubuntu-latest
