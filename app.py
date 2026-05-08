@@ -53,8 +53,6 @@ def health():
     return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
 
 
-
-
 if __name__ == "__main__":
     import uvicorn
     PORT = int(os.getenv("PORT", 4000))
