@@ -7,7 +7,6 @@ import os
 from datetime import datetime
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
 from fastapi.exceptions import HTTPException
 from dotenv import load_dotenv
 from slowapi import _rate_limit_exceeded_handler
@@ -54,8 +53,6 @@ def health():
     return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
 
 
-if os.path.isdir("public"):
-    app.mount("/", StaticFiles(directory="public", html=True), name="static")
 
 
 if __name__ == "__main__":
