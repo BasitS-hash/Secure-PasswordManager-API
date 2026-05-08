@@ -1,205 +1,173 @@
-"""
-Password entry routes for storing and retrieving encrypted passwords.
-"""
-
-from flask import Blueprint, request, jsonify
-from dotenv import load_dotenv
 import base64
+from typing import Optional
+from fastapi import APIRouter, Request, Depends, HTTPException
+from pydantic import BaseModel
 
 from src import db
 from src.logger import logger
-from src.middleware.auth import authenticate_token
+from src.middleware.auth import get_current_user
 from src.middleware.audit import audit_log
 
-load_dotenv()
+router = APIRouter(prefix="/entries", tags=["entries"])
 
-entries_bp = Blueprint('entries', __name__, url_prefix='/entries')
+ENTRY_SELECT = """SELECT id, name, encode(ciphertext, 'base64') AS ciphertext,
+                         encode(iv, 'base64') AS iv, encode(tag, 'base64') AS tag,
+                         meta, created_at, updated_at
+                  FROM password_entries"""
 
 
-@entries_bp.route('/', methods=['POST'])
-@authenticate_token
-def create_entry():
-    """
-    Create a password entry (expects ciphertext, iv, tag from client-side encryption).
-    """
-    data = request.get_json() or {}
-    name = data.get('name')
-    ciphertext = data.get('ciphertext')
-    iv = data.get('iv')
-    tag = data.get('tag')
-    meta = data.get('meta')
+class EntryRequest(BaseModel):
+    name: Optional[str] = None
+    ciphertext: Optional[str] = None
+    iv: Optional[str] = None
+    tag: Optional[str] = None
+    meta: Optional[str] = None
 
-    user_id = request.user.get('sub') if request.user else None
-    ip = request.remote_addr
 
-    if not all([name, ciphertext, iv, tag]):
-        audit_log(user_id=user_id, action='create_entry', ip=ip, success=False,
-                  message='missing required fields')
-        return jsonify({'error': 'name, ciphertext, iv and tag are required'}), 400
+def decode_entry_fields(body: EntryRequest):
+    return (
+        base64.b64decode(body.ciphertext),
+        base64.b64decode(body.iv),
+        base64.b64decode(body.tag),
+    )
+
+
+@router.post("/", status_code=201)
+def create_entry(
+    body: EntryRequest,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    user_id = user["sub"]
+    ip = request.client.host if request.client else None
+
+    if not all([body.name, body.ciphertext, body.iv, body.tag]):
+        audit_log(user_id=user_id, action="create_entry", ip=ip, success=False,
+                  message="missing required fields")
+        raise HTTPException(status_code=400, detail="name, ciphertext, iv and tag are required")
 
     try:
-        # Convert base64 strings to bytes
-        ciphertext_bytes = base64.b64decode(ciphertext)
-        iv_bytes = base64.b64decode(iv)
-        tag_bytes = base64.b64decode(tag)
-
+        ciphertext, iv, tag = decode_entry_fields(body)
         db.execute(
-            '''INSERT INTO password_entries(user_id, name, ciphertext, iv, tag, meta)
-               VALUES(%s, %s, %s, %s, %s, %s)''',
-            (user_id, name, ciphertext_bytes, iv_bytes, tag_bytes, meta or None)
+            "INSERT INTO password_entries(user_id, name, ciphertext, iv, tag, meta) VALUES(%s,%s,%s,%s,%s,%s)",
+            (user_id, body.name, ciphertext, iv, tag, body.meta),
         )
+        audit_log(user_id=user_id, action="create_entry", ip=ip, success=True)
+        return {"ok": True}
 
-        audit_log(user_id=user_id, action='create_entry', ip=ip, success=True)
-        return jsonify({'ok': True}), 201
-
+    except HTTPException:
+        raise
     except Exception as err:
-        logger.error(f'Create entry error: {err}')
-        audit_log(user_id=user_id, action='create_entry', ip=ip, success=False,
-                  message=str(err))
-        return jsonify({'error': 'Failed to create entry'}), 500
+        logger.error(f"Create entry error: {err}")
+        audit_log(user_id=user_id, action="create_entry", ip=ip, success=False, message=str(err))
+        raise HTTPException(status_code=500, detail="Failed to create entry")
 
 
-@entries_bp.route('/', methods=['GET'])
-@authenticate_token
-def list_entries():
-    """
-    List all password entries for the authenticated user.
-    Returns ciphertext blobs only (encrypted on client-side).
-    """
-    user_id = request.user.get('sub') if request.user else None
-    ip = request.remote_addr
+@router.get("/")
+def list_entries(request: Request, user: dict = Depends(get_current_user)):
+    user_id = user["sub"]
+    ip = request.client.host if request.client else None
 
     try:
         result = db.query(
-            '''SELECT id, name, encode(ciphertext, 'base64') AS ciphertext,
-                      encode(iv, 'base64') AS iv, encode(tag, 'base64') AS tag,
-                      meta, created_at, updated_at
-               FROM password_entries
-               WHERE user_id=%s
-               ORDER BY created_at DESC''',
-            (user_id,)
+            ENTRY_SELECT + " WHERE user_id=%s ORDER BY created_at DESC",
+            (user_id,),
         )
-
-        audit_log(user_id=user_id, action='list_entries', ip=ip, success=True)
-
-        return jsonify({'entries': result or []}), 200
+        audit_log(user_id=user_id, action="list_entries", ip=ip, success=True)
+        return {"entries": result or []}
 
     except Exception as err:
-        logger.error(f'List entries error: {err}')
-        audit_log(user_id=user_id, action='list_entries', ip=ip, success=False,
-                  message=str(err))
-        return jsonify({'error': 'Failed to list entries'}), 500
+        logger.error(f"List entries error: {err}")
+        audit_log(user_id=user_id, action="list_entries", ip=ip, success=False, message=str(err))
+        raise HTTPException(status_code=500, detail="Failed to list entries")
 
 
-@entries_bp.route('/<string:entry_id>', methods=['GET'])
-@authenticate_token
-def get_entry(entry_id):
-    """Fetch a single password entry by ID."""
-    user_id = request.user.get('sub') if request.user else None
-    ip = request.remote_addr
+@router.get("/{entry_id}")
+def get_entry(entry_id: str, request: Request, user: dict = Depends(get_current_user)):
+    user_id = user["sub"]
+    ip = request.client.host if request.client else None
 
     try:
         result = db.query(
-            '''SELECT id, name, encode(ciphertext, 'base64') AS ciphertext,
-                      encode(iv, 'base64') AS iv, encode(tag, 'base64') AS tag,
-                      meta, created_at, updated_at
-               FROM password_entries
-               WHERE id=%s AND user_id=%s''',
-            (entry_id, user_id)
+            ENTRY_SELECT + " WHERE id=%s AND user_id=%s",
+            (entry_id, user_id),
         )
-
         if not result:
-            audit_log(user_id=user_id, action='get_entry', ip=ip, success=False,
-                      message='not found')
-            return jsonify({'error': 'Entry not found'}), 404
+            audit_log(user_id=user_id, action="get_entry", ip=ip, success=False,
+                      message="not found")
+            raise HTTPException(status_code=404, detail="Entry not found")
 
-        audit_log(user_id=user_id, action='get_entry', ip=ip, success=True)
-        return jsonify(result[0]), 200
+        audit_log(user_id=user_id, action="get_entry", ip=ip, success=True)
+        return result[0]
 
+    except HTTPException:
+        raise
     except Exception as err:
-        logger.error(f'Get entry error: {err}')
-        audit_log(user_id=user_id, action='get_entry', ip=ip, success=False,
-                  message=str(err))
-        return jsonify({'error': 'Failed to get entry'}), 500
+        logger.error(f"Get entry error: {err}")
+        audit_log(user_id=user_id, action="get_entry", ip=ip, success=False, message=str(err))
+        raise HTTPException(status_code=500, detail="Failed to get entry")
 
 
-@entries_bp.route('/<string:entry_id>', methods=['PUT'])
-@authenticate_token
-def update_entry(entry_id):
-    """Update a password entry (re-encrypt and replace ciphertext)."""
-    data = request.get_json() or {}
-    name = data.get('name')
-    ciphertext = data.get('ciphertext')
-    iv = data.get('iv')
-    tag = data.get('tag')
-    meta = data.get('meta')
+@router.put("/{entry_id}")
+def update_entry(
+    entry_id: str,
+    body: EntryRequest,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    user_id = user["sub"]
+    ip = request.client.host if request.client else None
 
-    user_id = request.user.get('sub') if request.user else None
-    ip = request.remote_addr
-
-    if not all([name, ciphertext, iv, tag]):
-        audit_log(user_id=user_id, action='update_entry', ip=ip, success=False,
-                  message='missing required fields')
-        return jsonify({'error': 'name, ciphertext, iv and tag are required'}), 400
+    if not all([body.name, body.ciphertext, body.iv, body.tag]):
+        audit_log(user_id=user_id, action="update_entry", ip=ip, success=False,
+                  message="missing required fields")
+        raise HTTPException(status_code=400, detail="name, ciphertext, iv and tag are required")
 
     try:
-        ciphertext_bytes = base64.b64decode(ciphertext)
-        iv_bytes = base64.b64decode(iv)
-        tag_bytes = base64.b64decode(tag)
+        if not db.query("SELECT id FROM password_entries WHERE id=%s AND user_id=%s",
+                        (entry_id, user_id)):
+            audit_log(user_id=user_id, action="update_entry", ip=ip, success=False,
+                      message="not found")
+            raise HTTPException(status_code=404, detail="Entry not found")
 
-        existing = db.query(
-            'SELECT id FROM password_entries WHERE id=%s AND user_id=%s',
-            (entry_id, user_id)
-        )
-        if not existing:
-            audit_log(user_id=user_id, action='update_entry', ip=ip, success=False,
-                      message='not found')
-            return jsonify({'error': 'Entry not found'}), 404
-
+        ciphertext, iv, tag = decode_entry_fields(body)
         db.execute(
-            '''UPDATE password_entries
+            """UPDATE password_entries
                SET name=%s, ciphertext=%s, iv=%s, tag=%s, meta=%s, updated_at=now()
-               WHERE id=%s AND user_id=%s''',
-            (name, ciphertext_bytes, iv_bytes, tag_bytes, meta or None, entry_id, user_id)
+               WHERE id=%s AND user_id=%s""",
+            (body.name, ciphertext, iv, tag, body.meta, entry_id, user_id),
         )
+        audit_log(user_id=user_id, action="update_entry", ip=ip, success=True)
+        return {"ok": True}
 
-        audit_log(user_id=user_id, action='update_entry', ip=ip, success=True)
-        return jsonify({'ok': True}), 200
-
+    except HTTPException:
+        raise
     except Exception as err:
-        logger.error(f'Update entry error: {err}')
-        audit_log(user_id=user_id, action='update_entry', ip=ip, success=False,
-                  message=str(err))
-        return jsonify({'error': 'Failed to update entry'}), 500
+        logger.error(f"Update entry error: {err}")
+        audit_log(user_id=user_id, action="update_entry", ip=ip, success=False, message=str(err))
+        raise HTTPException(status_code=500, detail="Failed to update entry")
 
 
-@entries_bp.route('/<string:entry_id>', methods=['DELETE'])
-@authenticate_token
-def delete_entry(entry_id):
-    """Delete a password entry."""
-    user_id = request.user.get('sub') if request.user else None
-    ip = request.remote_addr
+@router.delete("/{entry_id}")
+def delete_entry(entry_id: str, request: Request, user: dict = Depends(get_current_user)):
+    user_id = user["sub"]
+    ip = request.client.host if request.client else None
 
     try:
-        existing = db.query(
-            'SELECT id FROM password_entries WHERE id=%s AND user_id=%s',
-            (entry_id, user_id)
-        )
-        if not existing:
-            audit_log(user_id=user_id, action='delete_entry', ip=ip, success=False,
-                      message='not found')
-            return jsonify({'error': 'Entry not found'}), 404
+        if not db.query("SELECT id FROM password_entries WHERE id=%s AND user_id=%s",
+                        (entry_id, user_id)):
+            audit_log(user_id=user_id, action="delete_entry", ip=ip, success=False,
+                      message="not found")
+            raise HTTPException(status_code=404, detail="Entry not found")
 
-        db.execute(
-            'DELETE FROM password_entries WHERE id=%s AND user_id=%s',
-            (entry_id, user_id)
-        )
+        db.execute("DELETE FROM password_entries WHERE id=%s AND user_id=%s",
+                   (entry_id, user_id))
+        audit_log(user_id=user_id, action="delete_entry", ip=ip, success=True)
+        return {"ok": True}
 
-        audit_log(user_id=user_id, action='delete_entry', ip=ip, success=True)
-        return jsonify({'ok': True}), 200
-
+    except HTTPException:
+        raise
     except Exception as err:
-        logger.error(f'Delete entry error: {err}')
-        audit_log(user_id=user_id, action='delete_entry', ip=ip, success=False,
-                  message=str(err))
-        return jsonify({'error': 'Failed to delete entry'}), 500
+        logger.error(f"Delete entry error: {err}")
+        audit_log(user_id=user_id, action="delete_entry", ip=ip, success=False, message=str(err))
+        raise HTTPException(status_code=500, detail="Failed to delete entry")
