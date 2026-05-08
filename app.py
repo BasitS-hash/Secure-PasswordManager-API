@@ -19,7 +19,49 @@ from src.middleware.rate_limit import limiter
 
 load_dotenv()
 
-app = FastAPI(title="Secure Password Manager API", version="1.0.0")
+description = """
+**Created by Syed Basit Sherazi**
+
+A secure, zero-knowledge password manager API with client-side AES-256-GCM encryption.
+
+## Purpose
+
+This project demonstrates secure API design principles including JWT authentication with token rotation,
+zero-knowledge architecture, AES-256-GCM encryption, audit logging, and rate limiting —
+built as a portfolio project to showcase backend security engineering skills.
+
+---
+
+## How to Authenticate
+
+1. **Register** — `POST /auth/register` with a `username` and `password` (min 20 chars, must include uppercase, lowercase, digit, and special character)
+2. **Login** — `POST /auth/login` — returns an `accessToken`, `refreshToken`, and `encryption_salt`
+3. **Authorize** — click the **Authorize** button at the top of this page, enter `Bearer <your accessToken>`
+4. All `/entries` endpoints are now unlocked
+
+Access tokens expire in 35 minutes. Use `POST /auth/token` with your `refreshToken` to get a new one.
+
+---
+
+## How Zero-Knowledge Encryption Works
+
+Your passwords are **never stored in plaintext** — not even on the server.
+
+1. When you log in, the server returns an `encryption_salt` unique to your account
+2. Your client combines your master password + salt to derive a 256-bit AES key (this never leaves your device)
+3. Each password entry is encrypted with AES-256-GCM **before** being sent to the API
+4. The server stores only the encrypted `ciphertext`, `iv`, and `tag` — it cannot decrypt them
+5. Decryption happens on your device using the same derived key
+
+This means even if the database is compromised, your passwords are safe.
+"""
+
+app = FastAPI(
+    title="Secure Password Manager API",
+    version="1.0.0",
+    description=description,
+    contact={"name": "Syed Basit Sherazi"},
+)
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
