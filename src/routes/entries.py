@@ -1,4 +1,5 @@
 import base64
+import json
 from typing import Optional
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
@@ -21,16 +22,16 @@ class EntryRequest(BaseModel):
     ciphertext: Optional[str] = None
     iv: Optional[str] = None
     tag: Optional[str] = None
-    meta: Optional[str] = None
+    meta: Optional[dict] = None
 
     model_config = {
         "json_schema_extra": {
             "example": {
                 "name": "GitHub",
-                "ciphertext": "eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eA==",
-                "iv": "eXl5eXl5eXl5eXk=",
+                "ciphertext": "eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHg=",
+                "iv": "eXl5eXl5eXl5eXl5",
                 "tag": "enp6enp6enp6enp6enp6eg==",
-                "meta": "work account"
+                "meta": {"label": "work"}
             }
         }
     }
@@ -60,9 +61,10 @@ def create_entry(
 
     try:
         ciphertext, iv, tag = decode_entry_fields(body)
+        meta = json.dumps(body.meta) if body.meta is not None else None
         db.execute(
             "INSERT INTO password_entries(user_id, name, ciphertext, iv, tag, meta) VALUES(%s,%s,%s,%s,%s,%s)",
-            (user_id, body.name, ciphertext, iv, tag, body.meta),
+            (user_id, body.name, ciphertext, iv, tag, meta),
         )
         audit_log(user_id=user_id, action="create_entry", ip=ip, success=True)
         return {"ok": True}
@@ -143,11 +145,12 @@ def update_entry(
             raise HTTPException(status_code=404, detail="Entry not found")
 
         ciphertext, iv, tag = decode_entry_fields(body)
+        meta = json.dumps(body.meta) if body.meta is not None else None
         db.execute(
             """UPDATE password_entries
                SET name=%s, ciphertext=%s, iv=%s, tag=%s, meta=%s, updated_at=now()
                WHERE id=%s AND user_id=%s""",
-            (body.name, ciphertext, iv, tag, body.meta, entry_id, user_id),
+            (body.name, ciphertext, iv, tag, meta, entry_id, user_id),
         )
         audit_log(user_id=user_id, action="update_entry", ip=ip, success=True)
         return {"ok": True}
