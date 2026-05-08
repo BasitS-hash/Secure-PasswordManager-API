@@ -25,18 +25,52 @@ class RegisterRequest(BaseModel):
     username: Optional[str] = None
     password: Optional[str] = None
 
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "username": "basit_dev",
+                "password": "SecurePass1@3$5678XX"
+            }
+        }
+    }
+
 
 class LoginRequest(BaseModel):
     username: Optional[str] = None
     password: Optional[str] = None
 
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "username": "basit_dev",
+                "password": "SecurePass1@3$5678XX"
+            }
+        }
+    }
+
 
 class RefreshRequest(BaseModel):
     refreshToken: Optional[str] = None
 
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "refreshToken": "550e8400-e29b-41d4-a716-446655440000"
+            }
+        }
+    }
+
 
 class LogoutRequest(BaseModel):
     refreshToken: Optional[str] = None
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "refreshToken": "550e8400-e29b-41d4-a716-446655440000"
+            }
+        }
+    }
 
 
 def hash_token(token: str) -> str:

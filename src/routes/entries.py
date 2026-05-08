@@ -23,6 +23,18 @@ class EntryRequest(BaseModel):
     tag: Optional[str] = None
     meta: Optional[str] = None
 
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "name": "GitHub",
+                "ciphertext": "eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eA==",
+                "iv": "eXl5eXl5eXl5eXk=",
+                "tag": "enp6enp6enp6enp6enp6eg==",
+                "meta": "work account"
+            }
+        }
+    }
+
 
 def decode_entry_fields(body: EntryRequest):
     return (
