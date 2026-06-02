@@ -7,7 +7,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-JWT_SECRET = os.getenv("JWT_SECRET", "your-secret-key-change-me")
+JWT_SECRET = os.getenv("JWT_SECRET")
+if not JWT_SECRET:
+    raise EnvironmentError("JWT_SECRET environment variable is required")
 
 security = HTTPBearer(auto_error=False)
 

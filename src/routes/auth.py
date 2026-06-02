@@ -16,7 +16,9 @@ from src.middleware.audit import audit_log
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 ph = PasswordHasher()
-JWT_SECRET = os.getenv("JWT_SECRET", "your-secret-key-change-me")
+JWT_SECRET = os.getenv("JWT_SECRET")
+if not JWT_SECRET:
+    raise EnvironmentError("JWT_SECRET environment variable is required")
 
 EXPIRY_UNITS = {"s": "seconds", "m": "minutes", "h": "hours", "d": "days"}
 

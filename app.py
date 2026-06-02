@@ -4,7 +4,7 @@ Zero-knowledge password storage with client-side encryption
 """
 
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import HTTPException
@@ -94,7 +94,7 @@ app.include_router(entries_router)
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
+    return {"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()}
 
 
 if __name__ == "__main__":

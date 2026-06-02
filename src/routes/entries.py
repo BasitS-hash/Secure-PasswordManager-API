@@ -38,11 +38,17 @@ class EntryRequest(BaseModel):
 
 
 def decode_entry_fields(body: EntryRequest):
-    return (
-        base64.b64decode(body.ciphertext),
-        base64.b64decode(body.iv),
-        base64.b64decode(body.tag),
-    )
+    try:
+        ciphertext = base64.b64decode(body.ciphertext)
+        iv = base64.b64decode(body.iv)
+        tag = base64.b64decode(body.tag)
+    except Exception:
+        raise HTTPException(status_code=400, detail="ciphertext, iv, and tag must be valid base64")
+    if len(iv) != 12:
+        raise HTTPException(status_code=400, detail="iv must be exactly 12 bytes for AES-GCM")
+    if len(tag) != 16:
+        raise HTTPException(status_code=400, detail="tag must be exactly 16 bytes for AES-GCM")
+    return ciphertext, iv, tag
 
 
 @router.post("/", status_code=201)
@@ -62,12 +68,13 @@ def create_entry(
     try:
         ciphertext, iv, tag = decode_entry_fields(body)
         meta = json.dumps(body.meta) if body.meta is not None else None
-        db.execute(
-            "INSERT INTO password_entries(user_id, name, ciphertext, iv, tag, meta) VALUES(%s,%s,%s,%s,%s,%s)",
+        result = db.query(
+            "INSERT INTO password_entries(user_id, name, ciphertext, iv, tag, meta) "
+            "VALUES(%s,%s,%s,%s,%s,%s) RETURNING id",
             (user_id, body.name, ciphertext, iv, tag, meta),
         )
         audit_log(user_id=user_id, action="create_entry", ip=ip, success=True)
-        return {"ok": True}
+        return {"ok": True, "id": str(result[0]["id"])}
 
     except HTTPException:
         raise

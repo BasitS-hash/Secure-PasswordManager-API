@@ -195,6 +195,7 @@ class TestEntriesEndpoints:
         })
         assert response.status_code == 201
         assert response.json()['ok'] is True
+        assert 'id' in response.json()
 
     @requires_db
     def test_list_entries(self, logged_in):
