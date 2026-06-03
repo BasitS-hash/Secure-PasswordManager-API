@@ -30,7 +30,7 @@ services:
     environment:
       DATABASE_URL: postgresql://${DB_USER:-pguser}:${DB_PASSWORD:-secret}@postgres:5432/passwords_db
       PORT: 4000
-      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set before running docker-compose}
       ACCESS_TOKEN_EXPIRES_IN: 15m
       REFRESH_TOKEN_EXPIRES_IN: 7d
     ports:

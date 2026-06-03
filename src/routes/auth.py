@@ -1,7 +1,7 @@
 import os
 import re
+import secrets
 import hashlib
-import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from fastapi import APIRouter, Request, HTTPException
@@ -13,12 +13,17 @@ import jwt
 from src import db
 from src.logger import logger
 from src.middleware.audit import audit_log
+from src.middleware.rate_limit import limiter
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 ph = PasswordHasher()
 JWT_SECRET = os.getenv("JWT_SECRET")
 if not JWT_SECRET:
     raise EnvironmentError("JWT_SECRET environment variable is required")
+
+# Dummy hash used to make login timing constant whether the username exists or not.
+# Computed once at startup so it doesn't add per-request overhead.
+_DUMMY_HASH = ph.hash("dummy-timing-constant-value-never-valid")
 
 EXPIRY_UNITS = {"s": "seconds", "m": "minutes", "h": "hours", "d": "days"}
 
@@ -117,6 +122,7 @@ def make_access_token(user_id, username: str, now: datetime) -> str:
 
 
 @router.post("/register", status_code=201)
+@limiter.limit("3/minute;10/hour")
 def register(body: RegisterRequest, request: Request):
     ip = request.client.host if request.client else None
 
@@ -137,7 +143,7 @@ def register(body: RegisterRequest, request: Request):
             """INSERT INTO users(username, password_hash, encryption_salt)
                VALUES(%s, %s, %s)
                RETURNING id, username""",
-            (body.username, ph.hash(body.password), os.urandom(16).hex()),
+            (body.username, ph.hash(body.password), os.urandom(32).hex()),
         )
         user = result[0]
         audit_log(user_id=user["id"], action="register", ip=ip, success=True)
@@ -150,6 +156,7 @@ def register(body: RegisterRequest, request: Request):
 
 
 @router.post("/login")
+@limiter.limit("5/minute;20/hour")
 def login(body: LoginRequest, request: Request):
     ip = request.client.host if request.client else None
 
@@ -162,7 +169,14 @@ def login(body: LoginRequest, request: Request):
             "SELECT id, password_hash, encryption_salt FROM users WHERE username=%s",
             (body.username,),
         )
+
+        # Always run argon2 verify — even for unknown usernames — so response time
+        # is constant whether the username exists or not (prevents timing enumeration).
         if not result:
+            try:
+                ph.verify(_DUMMY_HASH, body.password)
+            except Exception:
+                pass
             audit_log(action="login", ip=ip, success=False, message="user not found")
             raise HTTPException(status_code=401, detail="Invalid credentials")
 
@@ -178,7 +192,7 @@ def login(body: LoginRequest, request: Request):
         now = datetime.now(timezone.utc)
         access_token = make_access_token(user["id"], body.username, now)
 
-        refresh_token = str(uuid.uuid4())
+        refresh_token = secrets.token_urlsafe(32)
         expires_at = now + parse_expiry(os.getenv("REFRESH_TOKEN_EXPIRES_IN", "7d"))
         db.execute(
             "INSERT INTO refresh_tokens(user_id, token_hash, expires_at) VALUES(%s, %s, %s)",
@@ -226,11 +240,11 @@ def refresh_token(body: RefreshRequest, request: Request):
 
         user = db.query("SELECT username FROM users WHERE id=%s", (record["user_id"],))
         if not user:
-            raise HTTPException(status_code=404, detail="User not found")
+            raise HTTPException(status_code=403, detail="Invalid refresh token")
 
         db.execute("DELETE FROM refresh_tokens WHERE token_hash=%s",
                    (hash_token(body.refreshToken),))
-        new_refresh_token = str(uuid.uuid4())
+        new_refresh_token = secrets.token_urlsafe(32)
         db.execute(
             "INSERT INTO refresh_tokens(user_id, token_hash, expires_at) VALUES(%s, %s, %s)",
             (record["user_id"], hash_token(new_refresh_token),

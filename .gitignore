@@ -38,6 +38,9 @@ logs/
 .env.production
 .env.*.local
 
+# gstack security reports — keep local, never commit
+.gstack/
+
 # OS / editor
 .DS_Store
 Thumbs.db
