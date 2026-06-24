@@ -5,5 +5,5 @@ python-dotenv==1.2.2
 PyJWT==2.13.0
 argon2-cffi==25.1.0
 psycopg2-binary==2.9.12
-cryptography==48.0.1
+cryptography==49.0.0
 slowapi==0.1.10
