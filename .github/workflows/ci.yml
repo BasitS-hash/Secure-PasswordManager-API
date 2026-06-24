@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+      - name: Install dev dependencies
+        run: pip install -r requirements-dev.txt
+      - name: Ruff (lint)
+        run: ruff check src/ app.py tests/
+      - name: Black (format check)
+        run: black --check src/ app.py tests/
+      - name: Flake8
+        run: flake8 src/ app.py tests/ --max-line-length=120 --ignore=E501,W503
+
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: passwords_db_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    env:
+      DATABASE_URL: postgresql://postgres:testpass@localhost:5432/passwords_db_test
+      JWT_SECRET: ci-jwt-secret-0123456789abcdef0123456789abcdef
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+      - name: Install dev dependencies
+        run: pip install -r requirements-dev.txt
+      - name: Run migrations
+        env:
+          PGPASSWORD: testpass
+        run: |
+          for f in migrations/*.sql; do
+            psql -h localhost -U postgres -d passwords_db_test -f "$f"
+          done
+      - name: Run tests with coverage
+        run: pytest --cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=80
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.xml
+          if-no-files-found: ignore
