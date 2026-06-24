@@ -12,7 +12,6 @@ from fastapi.testclient import TestClient
 
 from app import app
 from src.middleware import audit as audit_module
-from src.middleware.rate_limit import limiter
 from src.routes import auth as auth_module
 from src.routes import entries as entries_module
 from tests.fake_db import FakeDB
@@ -34,14 +33,6 @@ def fake_db(monkeypatch):
         monkeypatch.setattr(mod, "query", db.query)
         monkeypatch.setattr(mod, "execute", db.execute)
     return db
-
-
-@pytest.fixture(autouse=True)
-def reset_rate_limiter():
-    """Clear the in-memory rate-limit counters so tests do not interfere."""
-    limiter.reset()
-    yield
-    limiter.reset()
 
 
 @pytest.fixture

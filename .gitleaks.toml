@@ -1,0 +1,26 @@
+# Gitleaks configuration.
+#
+# Extends the upstream default ruleset (all built-in secret detectors stay
+# active) and adds a single, tightly-scoped allowlist entry for the one
+# non-secret literal that the generic-api-key rule false-positives on: the
+# deterministic JWT_SECRET used by the CI workflow.
+#
+# This value is NOT a credential. It is a fixed, public test string whose only
+# purpose is to satisfy the application's fail-fast secret-strength validation
+# (src/settings.py) when the test suite runs in CI. It grants no access to any
+# environment. Real secrets are still fully scanned for everywhere else.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Allow the public CI-only JWT_SECRET literal (not a real credential)"
+# Scope the exception to the CI workflow file only.
+paths = [
+  '''\.github/workflows/ci\.yml''',
+]
+# And only the specific deterministic test value, so any *other* secret added to
+# ci.yml in the future is still caught.
+regexes = [
+  '''ci-jwt-secret-0123456789abcdef0123456789abcdef''',
+]
