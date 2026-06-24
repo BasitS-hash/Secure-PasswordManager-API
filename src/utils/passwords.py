@@ -23,21 +23,23 @@ def generate_password(length=16, upper=True, lower=True, digits=True, symbols=Tr
     """
     sets = []
     if upper:
-        sets.append('ABCDEFGHIJKLMNOPQRSTUVWXYZ')
+        sets.append("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
     if lower:
-        sets.append('abcdefghijklmnopqrstuvwxyz')
+        sets.append("abcdefghijklmnopqrstuvwxyz")
     if digits:
-        sets.append('0123456789')
+        sets.append("0123456789")
     if symbols:
-        sets.append('!@#$%^&*()-_=+[]{}|;:,.<>?')
+        sets.append("!@#$%^&*()-_=+[]{}|;:,.<>?")
 
     if not sets:
-        raise ValueError('At least one character set required')
+        raise ValueError("At least one character set required")
 
     if length < len(sets):
-        raise ValueError(f'Length must be at least {len(sets)} to satisfy all character requirements')
+        raise ValueError(
+            f"Length must be at least {len(sets)} to satisfy all character requirements"
+        )
 
-    all_chars = ''.join(sets)
+    all_chars = "".join(sets)
 
     # Guarantee one character from each required set, then fill the rest randomly
     guaranteed = [secrets.choice(s) for s in sets]
@@ -46,7 +48,7 @@ def generate_password(length=16, upper=True, lower=True, digits=True, symbols=Tr
     password_chars = guaranteed + filler
     secrets.SystemRandom().shuffle(password_chars)
 
-    return ''.join(password_chars)
+    return "".join(password_chars)
 
 
 def entropy_bits(password):
@@ -59,10 +61,10 @@ def entropy_bits(password):
     Returns:
         Estimated entropy in bits
     """
-    has_upper = bool(re.search(r'[A-Z]', password))
-    has_lower = bool(re.search(r'[a-z]', password))
-    has_digits = bool(re.search(r'[0-9]', password))
-    has_symbols = bool(re.search(r'[^A-Za-z0-9]', password))
+    has_upper = bool(re.search(r"[A-Z]", password))
+    has_lower = bool(re.search(r"[a-z]", password))
+    has_digits = bool(re.search(r"[0-9]", password))
+    has_symbols = bool(re.search(r"[^A-Za-z0-9]", password))
 
     pool = 0
     if has_upper:
