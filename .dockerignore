@@ -1,17 +1,49 @@
-node_modules
+# Secrets & local env
 .env
 .env.*
-coverage
-npm-debug.log
+
+# Python caches & build artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtualenvs
+venv/
+.venv/
+env/
+
+# Tests, coverage, tooling caches
+tests/
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Dev-only dependencies
+requirements-dev.txt
+
+# Logs
+logs/
 *.log
-.DS_Store
+
+# VCS & CI
 .git
 .github
+.gitignore
+.gitattributes
+
+# Docs & compose (not needed in the image)
 README.md
-SETUP.md
-PROJECT_COMPLETE.md
-DEPLOYMENT.md
-tests
-jest.config.js
+SECURITY.md
 docker-compose.yml
-nginx.conf
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
