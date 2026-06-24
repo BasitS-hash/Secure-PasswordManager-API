@@ -4,7 +4,7 @@ Zero-knowledge password storage with client-side encryption
 """
 
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import HTTPException
@@ -78,7 +78,9 @@ async def security_headers(request: Request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
-    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Strict-Transport-Security"] = (
+        "max-age=31536000; includeSubDomains"
+    )
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
         "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
@@ -94,11 +96,15 @@ app.include_router(entries_router)
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
+    return {"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()}
 
 
 if __name__ == "__main__":
     import uvicorn
+
     PORT = int(os.getenv("PORT", 4000))
+    # Binding to all interfaces is required so the service is reachable from
+    # outside its container (Docker/Railway). Override with HOST if needed.
+    HOST = os.getenv("HOST", "0.0.0.0")  # nosec B104 - intentional container bind
     logger.info(f"Starting Secure Password Manager API on port {PORT}")
-    uvicorn.run("app:app", host="0.0.0.0", port=PORT, reload=False)
+    uvicorn.run("app:app", host=HOST, port=PORT, reload=False)
