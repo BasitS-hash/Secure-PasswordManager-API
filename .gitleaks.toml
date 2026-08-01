@@ -1,26 +1,51 @@
 # Gitleaks configuration.
 #
 # Extends the upstream default ruleset (all built-in secret detectors stay
-# active) and adds a single, tightly-scoped allowlist entry for the one
-# non-secret literal that the generic-api-key rule false-positives on: the
-# deterministic JWT_SECRET used by the CI workflow.
-#
-# This value is NOT a credential. It is a fixed, public test string whose only
-# purpose is to satisfy the application's fail-fast secret-strength validation
-# (src/settings.py) when the test suite runs in CI. It grants no access to any
-# environment. Real secrets are still fully scanned for everywhere else.
+# active) and adds two tightly-scoped allowlist entries for non-secret literals
+# that the default rules false-positive on. Real secrets are still fully
+# scanned for everywhere else.
 
 [extend]
 useDefault = true
 
-[allowlist]
-description = "Allow the public CI-only JWT_SECRET literal (not a real credential)"
-# Scope the exception to the CI workflow file only.
+# 1. The deterministic JWT_SECRET used by the CI workflow.
+#
+# This value is NOT a credential. It is a fixed, public test string whose only
+# purpose is to satisfy the application's fail-fast secret-strength validation
+# (src/settings.py) when the test suite runs in CI. It grants no access to any
+# environment.
+[[allowlists]]
+description = "Public CI-only JWT_SECRET literal (not a real credential)"
+# Scope the exception to the CI workflow file only, so any *other* secret added
+# to ci.yml in the future is still caught.
 paths = [
   '''\.github/workflows/ci\.yml''',
 ]
-# And only the specific deterministic test value, so any *other* secret added to
-# ci.yml in the future is still caught.
 regexes = [
   '''ci-jwt-secret-0123456789abcdef0123456789abcdef''',
+]
+
+# 2. Placeholder bearer tokens in the API documentation.
+#
+# SETUP.md, PYTHON_QUICK_REFERENCE.md and public/docs.html show `curl` usage
+# examples whose Authorization headers carry obvious placeholders — never a real
+# token. The `curl-auth-header` rule flags the header shape regardless of value,
+# so these are matched by placeholder *form* rather than by file: an all-caps
+# SNAKE_CASE word, or a name wrapped in <angle> or {curly} brackets. A genuine
+# JWT (mixed-case base64url with dots) does not match, so a real token pasted
+# into any doc is still reported.
+# NOTE: deliberately NO `paths` key here. In a global allowlist, `paths` causes
+# gitleaks to skip those files outright rather than filter individual findings —
+# scoping this to `\.(md|html)$` would stop docs being scanned at all and hide a
+# real secret pasted into a README. Matching on the placeholder's *shape* keeps
+# every file in scope.
+#
+# The token must be an all-caps SNAKE_CASE word, or a name in <angle>/{curly}
+# brackets. A genuine credential (mixed-case, high-entropy) does not match, so a
+# real token in any file — docs included — is still reported.
+[[allowlists]]
+description = "Placeholder bearer tokens in curl usage examples"
+regexTarget = "line"
+regexes = [
+  '''(?i)authorization:\s*bearer\s+(<[^>]{1,40}>|\{[^}]{1,40}\}|[A-Z][A-Z0-9_]{2,40})(["'\s\\]|$)''',
 ]
