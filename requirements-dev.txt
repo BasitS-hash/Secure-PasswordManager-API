@@ -7,7 +7,7 @@ pytest-cov==7.1.0
 httpx==0.28.1
 
 # Linting & formatting
-ruff==0.15.20
+ruff==0.16.5
 black==26.5.1
 flake8==7.3.0
 
